@@ -1,0 +1,96 @@
+@page "/customers/{Id:int}"
+@inject IDbContextFactory<AppDbContext> DbFactory
+@inject NavigationManager Navigation
+
+<PageTitle>Customer</PageTitle>
+
+@if (customer is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1>@customer.Name</h1>
+        <a class="btn btn-outline-primary" href="@($"customers/{Id}/edit")">Edit customer</a>
+    </div>
+
+    <dl class="row">
+        <dt class="col-sm-2">Email</dt>
+        <dd class="col-sm-10"><a href="mailto:@customer.Email">@customer.Email</a></dd>
+        <dt class="col-sm-2">Phone</dt>
+        <dd class="col-sm-10">@(customer.Phone ?? "-")</dd>
+        <dt class="col-sm-2">City</dt>
+        <dd class="col-sm-10">@(customer.City ?? "-")</dd>
+        <dt class="col-sm-2">Customer since</dt>
+        <dd class="col-sm-10">@customer.CreatedUtc.ToLocalTime().ToString("d")</dd>
+    </dl>
+
+    <div class="d-flex justify-content-between align-items-center mt-4 mb-2">
+        <h2 class="h4 mb-0">Orders</h2>
+        <a class="btn btn-primary btn-sm" href="@($"orders/new?customerId={Id}")">New order</a>
+    </div>
+
+    @if (customer.Orders.Count == 0)
+    {
+        <p class="text-muted">No orders yet.</p>
+    }
+    else
+    {
+        @* A plain HTML table with a C# foreach - the Repeater of the Blazor world. *@
+        <table class="table table-sm">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th>Status</th>
+                    <th class="text-end">Amount</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var order in customer.Orders)
+                {
+                    <tr>
+                        <td>@order.OrderDate.ToString("d")</td>
+                        <td>@order.Description</td>
+                        <td><span class="@order.Status.BadgeClass()">@order.Status</span></td>
+                        <td class="text-end">@order.Amount.ToString("N2")</td>
+                        <td class="text-end"><a href="@($"orders/{order.Id}/edit")">Edit</a></td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr class="fw-bold">
+                    <td colspan="3">Total</td>
+                    <td class="text-end">@customer.Orders.Sum(o => o.Amount).ToString("N2")</td>
+                    <td></td>
+                </tr>
+            </tfoot>
+        </table>
+    }
+}
+
+@code {
+    // Filled from the route: /customers/42 -> Id = 42
+    [Parameter] public int Id { get; set; }
+
+    private Customer? customer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+
+        // Load the customer and its orders in one go (master/detail).
+        // AsNoTracking: read-only, so EF Core doesn't need to track changes.
+        customer = await db.Customers
+            .AsNoTracking()
+            .Include(c => c.Orders.OrderByDescending(o => o.OrderDate))
+            .SingleOrDefaultAsync(c => c.Id == Id);
+
+        if (customer is null)
+        {
+            Navigation.NotFound();   // Shows the NotFound page (new in .NET 10)
+        }
+    }
+}

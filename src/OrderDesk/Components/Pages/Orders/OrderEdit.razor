@@ -1,0 +1,126 @@
+@page "/orders/new"
+@page "/orders/{Id:int}/edit"
+@inject IDbContextFactory<AppDbContext> DbFactory
+@inject NavigationManager Navigation
+
+<PageTitle>@(IsNew ? "New order" : "Edit order")</PageTitle>
+
+<h1>@(IsNew ? "New order" : $"Edit order #{Id}")</h1>
+
+@if (order is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <EditForm Model="order" OnValidSubmit="SaveAsync" class="col-lg-6">
+        <DataAnnotationsValidator />
+        <ValidationSummary class="text-danger" />
+
+        <div class="mb-3">
+            <label for="customer" class="form-label">Customer</label>
+            @* A lookup dropdown - the DropDownList with DataTextField/DataValueField. *@
+            <InputSelect id="customer" class="form-select" @bind-Value="order.CustomerId">
+                <option value="0">-- Select customer --</option>
+                @foreach (var customer in customers)
+                {
+                    <option value="@customer.Id">@customer.Name</option>
+                }
+            </InputSelect>
+            <ValidationMessage For="() => order.CustomerId" class="text-danger" />
+        </div>
+
+        <div class="row">
+            <div class="col-sm-6 mb-3">
+                <label for="date" class="form-label">Order date</label>
+                <InputDate id="date" class="form-control" @bind-Value="order.OrderDate" />
+            </div>
+            <div class="col-sm-6 mb-3">
+                <label for="status" class="form-label">Status</label>
+                @* InputSelect binds directly to the enum - no manual parsing. *@
+                <InputSelect id="status" class="form-select" @bind-Value="order.Status">
+                    @foreach (var status in Enum.GetValues<OrderStatus>())
+                    {
+                        <option value="@status">@status</option>
+                    }
+                </InputSelect>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label for="description" class="form-label">Description</label>
+            <InputText id="description" class="form-control" @bind-Value="order.Description" />
+            <ValidationMessage For="() => order.Description" class="text-danger" />
+        </div>
+
+        <div class="mb-3">
+            <label for="amount" class="form-label">Amount</label>
+            <InputNumber id="amount" class="form-control" step="0.01" @bind-Value="order.Amount" />
+            <ValidationMessage For="() => order.Amount" class="text-danger" />
+        </div>
+
+        <button type="submit" class="btn btn-primary" disabled="@saving">Save</button>
+        <a class="btn btn-link" href="orders">Cancel</a>
+    </EditForm>
+}
+
+@code {
+    [Parameter] public int? Id { get; set; }
+
+    // Read from the query string: /orders/new?customerId=3 pre-selects the customer.
+    [SupplyParameterFromQuery] public int? CustomerId { get; set; }
+
+    // Only the two columns the dropdown needs.
+    private record CustomerOption(int Id, string Name);
+
+    private List<CustomerOption> customers = [];
+    private Order? order;
+    private bool saving;
+
+    private bool IsNew => Id is null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+
+        // Projection with Select => SELECT [Id], [Name] FROM [Customers] ORDER BY [Name]
+        customers = await db.Customers
+            .OrderBy(c => c.Name)
+            .Select(c => new CustomerOption(c.Id, c.Name))
+            .ToListAsync();
+
+        if (IsNew)
+        {
+            order = new Order { CustomerId = CustomerId ?? 0 };
+        }
+        else
+        {
+            order = await db.Orders.FindAsync(Id);
+
+            if (order is null)
+            {
+                Navigation.NotFound();
+            }
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        saving = true;
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+
+        if (IsNew)
+        {
+            db.Orders.Add(order!);
+        }
+        else
+        {
+            db.Orders.Update(order!);
+        }
+
+        await db.SaveChangesAsync();
+
+        Navigation.NavigateTo($"customers/{order!.CustomerId}");
+    }
+}

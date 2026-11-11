@@ -1,0 +1,65 @@
+﻿@page "/"
+@inject IDbContextFactory<AppDbContext> DbFactory
+
+<PageTitle>OrderDesk</PageTitle>
+
+<h1>OrderDesk</h1>
+<p class="lead">A tiny Blazor Server demo: customers and orders, stored in Azure SQL.</p>
+
+@if (stats is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="row g-3 mb-4">
+        <div class="col-sm-4">
+            <div class="card">
+                <div class="card-body">
+                    <div class="text-muted">Customers</div>
+                    <div class="fs-2">@stats.Customers</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-4">
+            <div class="card">
+                <div class="card-body">
+                    <div class="text-muted">Open orders</div>
+                    <div class="fs-2">@stats.OpenOrders</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-4">
+            <div class="card">
+                <div class="card-body">
+                    <div class="text-muted">Open order value</div>
+                    <div class="fs-2">@stats.OpenValue.ToString("N2")</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <a class="btn btn-primary" href="customers">Go to customers</a>
+    <a class="btn btn-outline-primary" href="orders">Go to orders</a>
+}
+
+@code {
+    // A small immutable type just for this page.
+    private record Stats(int Customers, int OpenOrders, decimal OpenValue);
+
+    private Stats? stats;
+
+    // Runs when the page is first shown - the Blazor equivalent of Page_Load with !IsPostBack.
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+
+        // LINQ queries are translated to SQL: SELECT COUNT(*), SELECT SUM(...) etc.
+        var openOrders = db.Orders.Where(o => o.Status == OrderStatus.New || o.Status == OrderStatus.Confirmed);
+
+        stats = new Stats(
+            Customers: await db.Customers.CountAsync(),
+            OpenOrders: await openOrders.CountAsync(),
+            OpenValue: await openOrders.SumAsync(o => o.Amount));
+    }
+}

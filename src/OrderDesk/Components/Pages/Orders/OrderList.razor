@@ -1,0 +1,67 @@
+@page "/orders"
+@implements IAsyncDisposable
+@inject IDbContextFactory<AppDbContext> DbFactory
+
+<PageTitle>Orders</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1>Orders</h1>
+    <a class="btn btn-primary" href="orders/new">New order</a>
+</div>
+
+<div class="col-sm-4 mb-3">
+    <label for="status" class="form-label">Status</label>
+    @* Changing the dropdown re-renders the grid immediately - like AutoPostBack="true", minus the postback. *@
+    <select id="status" class="form-select" @bind="statusFilter" @bind:after="GoToFirstPage">
+        <option value="">All</option>
+        @foreach (var status in Enum.GetValues<OrderStatus>())
+        {
+            <option value="@status">@status</option>
+        }
+    </select>
+</div>
+
+<QuickGrid Class="table table-striped table-hover" Items="FilteredOrders" Pagination="pagination">
+    <PropertyColumn Property="o => o.OrderDate" Title="Date" Format="d" Sortable="true" IsDefaultSortColumn="true" InitialSortDirection="SortDirection.Descending" />
+    <TemplateColumn Title="Customer" SortBy="GridSort<Order>.ByAscending(o => o.Customer!.Name)">
+        <a href="@($"customers/{context.CustomerId}")">@context.Customer?.Name</a>
+    </TemplateColumn>
+    <PropertyColumn Property="o => o.Description" />
+    <TemplateColumn Title="Status" SortBy="GridSort<Order>.ByAscending(o => o.Status)">
+        <span class="@context.Status.BadgeClass()">@context.Status</span>
+    </TemplateColumn>
+    <PropertyColumn Property="o => o.Amount" Format="N2" Align="Align.Right" Sortable="true" />
+    <TemplateColumn>
+        <a href="@($"orders/{context.Id}/edit")">Edit</a>
+    </TemplateColumn>
+</QuickGrid>
+
+<Paginator State="pagination" />
+
+@code {
+    private AppDbContext db = default!;
+    private PaginationState pagination = new() { ItemsPerPage = 10 };
+    private OrderStatus? statusFilter;   // null = "All"
+
+    protected override void OnInitialized() => db = DbFactory.CreateDbContext();
+
+    private IQueryable<Order> FilteredOrders
+    {
+        get
+        {
+            // Include = SQL JOIN to Customers, so the customer name can be shown.
+            IQueryable<Order> query = db.Orders.Include(o => o.Customer);
+
+            if (statusFilter is not null)
+            {
+                query = query.Where(o => o.Status == statusFilter);
+            }
+
+            return query;
+        }
+    }
+
+    private Task GoToFirstPage() => pagination.SetCurrentPageIndexAsync(0);
+
+    public async ValueTask DisposeAsync() => await db.DisposeAsync();
+}
