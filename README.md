@@ -36,6 +36,8 @@ validation and lookup dropdowns).
 | Master page | `Components/Layout/MainLayout.razor` |
 | `Response.Redirect` | `NavigationManager.NavigateTo(...)` |
 | `Global.asax` + `web.config` | `Program.cs` + `appsettings.json` |
+| Static files anywhere in the site folder, hidden via `web.config` rules | Only `wwwroot/` is public; config and code can never be downloaded. `MapStaticAssets()` adds caching, compression and cache-busting file names |
+| Page-specific CSS in shared stylesheets | `MyComponent.razor.css` – CSS scoped to that one component, bundled automatically at build |
 | `SqlConnection` / `SqlCommand` / DataSet | EF Core `DbContext` + LINQ |
 | Hand-maintained DDL scripts | EF Core migrations (C#), which can be turned into a plain SQL script |
 
@@ -45,6 +47,7 @@ validation and lookup dropdowns).
 src/OrderDesk/
 ├── Program.cs                     Startup: services, EF Core, HTTP pipeline
 ├── appsettings.json               Connection string (no password)
+├── wwwroot/                       Static files served as-is: app.css, favicon, Bootstrap
 ├── Data/
 │   ├── Customer.cs, Order.cs      Entities = tables
 │   ├── AppDbContext.cs            EF Core context + extra mapping
