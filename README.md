@@ -1,83 +1,84 @@
-# OrderDesk – a minimal Blazor Server demo
+# OrderDesk – en minimal Blazor Server-demo
 
-A deliberately small business app showing how a modern .NET stack looks to developers coming from
-**ASP.NET WebForms, .NET Framework and SQL Server**.
+En bevidst lille forretningsapplikation, der viser, hvordan en moderne .NET-stak ser ud for udviklere,
+der kommer fra **ASP.NET WebForms, .NET Framework og SQL Server**.
 
-It has two related tables (customers and orders) and shows both **displaying** data (lists with
-search, sorting and paging; a master/detail page) and **entering** data (create/edit forms with
-validation and lookup dropdowns).
+Den har to relaterede tabeller (kunder og ordrer) og viser både **visning** af data (lister med
+søgning, sortering og paging samt en master/detail-side) og **indtastning** af data (opret/rediger-formularer
+med validering og opslags-dropdowns).
 
 | | |
 |---|---|
 | Runtime | .NET 10 (LTS), C# 14 |
-| UI | Blazor Web App, *Interactive Server* render mode, Bootstrap 5 |
-| Data access | Entity Framework Core 10, code-first migrations |
+| UI | Blazor Web App, render mode *Interactive Server*, Bootstrap 5 |
+| Dataadgang | Entity Framework Core 10, code-first migrations |
 | Database | Azure SQL Database |
-| DB login | Microsoft Entra ID, passwordless (`Authentication=Active Directory Default`) |
+| Database-login | Microsoft Entra ID, uden password (`Authentication=Active Directory Default`) |
 
-> This is example code, not a production template: no authentication, no tests, no CI/CD.
+> Dette er eksempelkode, ikke en skabelon til produktion: ingen brugerlogin, ingen tests, ingen CI/CD.
+> Selve koden og kommentarerne i den er på engelsk.
 
-## WebForms → Blazor cheat sheet
+## Fra WebForms til Blazor – oversigt
 
-| WebForms | Blazor (this repo) |
+| WebForms | Blazor (dette repo) |
 |---|---|
-| `Default.aspx` | `Home.razor` – HTML + Razor syntax (`@if`, `@foreach`, `@variable`) |
-| `Default.aspx.cs` (code-behind) | `@code { }` block, **or** a partial class in `*.razor.cs` – see [CustomerEdit.razor.cs](src/OrderDesk/Components/Pages/Customers/CustomerEdit.razor.cs) |
+| `Default.aspx` | `Home.razor` – HTML + Razor-syntaks (`@if`, `@foreach`, `@variable`) |
+| `Default.aspx.cs` (code-behind) | En `@code { }`-blok **eller** en partial class i `*.razor.cs` – se [CustomerEdit.razor.cs](src/OrderDesk/Components/Pages/Customers/CustomerEdit.razor.cs) |
 | `Page_Load` / `if (!IsPostBack)` | `OnInitializedAsync()` |
-| `btnSave_Click` | `@onclick="..."` or `<EditForm OnValidSubmit="...">` |
-| Postback + ViewState | Event sent over a SignalR (WebSocket) connection; component fields simply keep their values on the server – no ViewState |
-| UpdatePanel | Not needed – every interaction updates only the changed part of the page |
-| `AutoPostBack="true"` | `@bind` / `@bind:event="oninput"` – see the search box and status filter |
-| GridView | `QuickGrid` with sorting and paging done in SQL |
-| Repeater | `@foreach` over a list |
+| `btnSave_Click` | `@onclick="..."` eller `<EditForm OnValidSubmit="...">` |
+| Postback + ViewState | Hændelsen sendes over en SignalR-forbindelse (WebSocket); komponentens felter bevarer simpelthen deres værdier på serveren – ingen ViewState |
+| UpdatePanel | Ikke nødvendig – hver interaktion opdaterer kun den del af siden, der er ændret |
+| `AutoPostBack="true"` | `@bind` / `@bind:event="oninput"` – se søgefeltet og statusfilteret |
+| GridView | `QuickGrid` med sortering og paging udført i SQL |
+| Repeater | `@foreach` over en liste |
 | DropDownList | `InputSelect` / `<select>` |
-| RequiredFieldValidator etc. | Data annotations (`[Required]`, `[StringLength]`, `[Range]`) on the class + `DataAnnotationsValidator` |
-| User control (`.ascx`) | Any `.razor` file is a reusable component |
+| RequiredFieldValidator m.fl. | Data annotations (`[Required]`, `[StringLength]`, `[Range]`) på klassen + `DataAnnotationsValidator` |
+| User control (`.ascx`) | Enhver `.razor`-fil er en genbrugelig komponent |
 | Master page | `Components/Layout/MainLayout.razor` |
 | `Response.Redirect` | `NavigationManager.NavigateTo(...)` |
 | `Global.asax` + `web.config` | `Program.cs` + `appsettings.json` |
-| Static files anywhere in the site folder, hidden via `web.config` rules | Only `wwwroot/` is public; config and code can never be downloaded. `MapStaticAssets()` adds caching, compression and cache-busting file names |
-| Page-specific CSS in shared stylesheets | `MyComponent.razor.css` – CSS scoped to that one component, bundled automatically at build |
+| Statiske filer overalt i site-mappen, skjult via regler i `web.config` | Kun `wwwroot/` er offentlig; konfiguration og kode kan aldrig downloades. `MapStaticAssets()` sørger for caching, komprimering og filnavne, der skifter, når indholdet ændres |
+| Sidespecifik CSS i fælles stylesheets | `MyComponent.razor.css` – CSS, der kun gælder for den ene komponent og bundtes automatisk ved build |
 | `SqlConnection` / `SqlCommand` / DataSet | EF Core `DbContext` + LINQ |
-| Hand-maintained DDL scripts | EF Core migrations (C#), which can be turned into a plain SQL script |
+| Håndvedligeholdte DDL-scripts | EF Core migrations (C#), som kan omsættes til et almindeligt SQL-script |
 
-## Project layout
+## Projektstruktur
 
 ```
 src/OrderDesk/
-├── Program.cs                     Startup: services, EF Core, HTTP pipeline
-├── appsettings.json               Connection string (no password)
-├── wwwroot/                       Static files served as-is: app.css, favicon, Bootstrap
+├── Program.cs                     Opstart: services, EF Core, HTTP-pipeline
+├── appsettings.json               Connection string (uden password)
+├── wwwroot/                       Statiske filer, der sendes uændret: app.css, favicon, Bootstrap
 ├── Data/
-│   ├── Customer.cs, Order.cs      Entities = tables
-│   ├── AppDbContext.cs            EF Core context + extra mapping
-│   ├── SeedData.cs                Demo rows on first start
-│   └── Migrations/                Generated schema migrations
+│   ├── Customer.cs, Order.cs      Entiteter = tabeller
+│   ├── AppDbContext.cs            EF Core-context + ekstra mapping
+│   ├── SeedData.cs                Demodata ved første opstart
+│   └── Migrations/                Genererede schema-migrations
 └── Components/
-    ├── Layout/                    Master page + navigation menu
+    ├── Layout/                    Master page + navigationsmenu
     └── Pages/
-        ├── Home.razor             Dashboard (counts and sums)
-        ├── Customers/             List (search/sort/page), details with orders, create/edit
-        └── Orders/                List with status filter, create/edit with customer dropdown
-db/schema.sql                      The migrations as a plain T-SQL script, for reference
+        ├── Home.razor             Dashboard (antal og summer)
+        ├── Customers/             Liste (søg/sortér/sider), detaljer med ordrer, opret/rediger
+        └── Orders/                Liste med statusfilter, opret/rediger med kunde-dropdown
+db/schema.sql                      Migrations som almindeligt T-SQL-script, til orientering
 ```
 
-## Running it
+## Sådan kører du den
 
-### 1. Prerequisites
+### 1. Forudsætninger
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
-- [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli), signed in with `az login`
-  (or be signed in to Azure in Visual Studio)
+- [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli), logget ind med `az login`
+  (eller logget ind på Azure i Visual Studio)
 
-### 2. Create an Azure SQL database (once)
+### 2. Opret en Azure SQL-database (én gang)
 
-The server is created with **Entra-only authentication** and *you* as the admin – no SQL logins or passwords.
+Serveren oprettes med **kun Entra-godkendelse** og *dig* som administrator – ingen SQL-logins eller passwords.
 
 ```bash
 RG=rg-orderdesk
 LOCATION=swedencentral
-SERVER=orderdesk-$RANDOM          # must be globally unique
+SERVER=orderdesk-$RANDOM          # skal være globalt unikt
 
 az group create --name $RG --location $LOCATION
 
@@ -87,12 +88,12 @@ az sql server create --resource-group $RG --name $SERVER --location $LOCATION \
   --external-admin-name "$(az ad signed-in-user show --query userPrincipalName -o tsv)" \
   --external-admin-sid "$(az ad signed-in-user show --query id -o tsv)"
 
-# Uses the Azure SQL free offer (one free serverless database per subscription)
+# Bruger Azure SQL's gratis tilbud (én gratis serverless-database pr. subscription)
 az sql db create --resource-group $RG --server $SERVER --name OrderDesk \
   --edition GeneralPurpose --compute-model Serverless --family Gen5 --capacity 2 \
   --use-free-limit --free-limit-exhaustion-behavior AutoPause
 
-# Allow your own IP through the server firewall
+# Giv din egen IP-adresse adgang gennem serverens firewall
 MYIP=$(curl -s https://api.ipify.org)
 az sql server firewall-rule create --resource-group $RG --server $SERVER \
   --name my-ip --start-ip-address $MYIP --end-ip-address $MYIP
@@ -100,54 +101,54 @@ az sql server firewall-rule create --resource-group $RG --server $SERVER \
 echo "Server name: $SERVER.database.windows.net"
 ```
 
-### 3. Point the app at it
+### 3. Peg applikationen på databasen
 
-In [`src/OrderDesk/appsettings.json`](src/OrderDesk/appsettings.json) replace `YOUR-SERVER-NAME`
-with your server name. Note that the connection string contains no user name or password:
+Erstat `YOUR-SERVER-NAME` med dit servernavn i [`src/OrderDesk/appsettings.json`](src/OrderDesk/appsettings.json).
+Bemærk, at connection string'en hverken indeholder brugernavn eller password:
 
 ```
 Server=tcp:YOUR-SERVER-NAME.database.windows.net,1433;Database=OrderDesk;Authentication=Active Directory Default;Encrypt=True;
 ```
 
-`Active Directory Default` makes SqlClient obtain a token from whatever identity is available:
-your `az login` / Visual Studio sign-in on a developer machine, or the **managed identity** when
-the app runs in Azure App Service.
+`Active Directory Default` får SqlClient til at hente et token fra den identitet, der er til rådighed:
+dit `az login` / din Visual Studio-konto på en udviklermaskine eller den **managed identity**, når
+applikationen kører i Azure App Service.
 
-### 4. Run
+### 4. Kør
 
 ```bash
 dotnet run --project src/OrderDesk
 ```
 
-On startup the app applies the EF Core migrations (creates the tables) and inserts a few demo
-rows. The SQL that EF Core sends to the database is written to the console, so you can see
-exactly what each page does.
+Ved opstart kører applikationen EF Core-migrations (opretter tabellerne) og indsætter lidt
+demodata. Den SQL, som EF Core sender til databasen, skrives i konsollen, så du kan se præcis,
+hvad hver side gør.
 
-> No Azure subscription at hand? Swap the connection string for a local SQL Server or LocalDB, e.g.
-> `Server=(localdb)\MSSQLLocalDB;Database=OrderDesk;Trusted_Connection=True;` – the code is unchanged.
+> Intet Azure-abonnement ved hånden? Skift connection string'en til en lokal SQL Server eller LocalDB, f.eks.
+> `Server=(localdb)\MSSQLLocalDB;Database=OrderDesk;Trusted_Connection=True;` – koden er uændret.
 
-## Changing the database schema
+## Ændringer i databaseskemaet
 
-1. Change the entity class, e.g. add a property to `Customer.cs`.
-2. Create a migration (the `dotnet-ef` tool is pinned in `dotnet-tools.json`):
+1. Ret entitetsklassen, f.eks. ved at tilføje en property til `Customer.cs`.
+2. Opret en migration (værktøjet `dotnet-ef` er fastlåst i `dotnet-tools.json`):
 
    ```bash
    dotnet tool restore
    dotnet ef migrations add AddCustomerVatNumber --project src/OrderDesk --output-dir Data/Migrations
    ```
 
-3. Run the app (or `dotnet ef database update --project src/OrderDesk`).
+3. Start applikationen (eller kør `dotnet ef database update --project src/OrderDesk`).
 
-To see or hand over the T-SQL, generate an idempotent script – this is how [`db/schema.sql`](db/schema.sql) was made:
+Vil du se eller videregive T-SQL'en, kan du generere et idempotent script – sådan blev [`db/schema.sql`](db/schema.sql) lavet:
 
 ```bash
 dotnet ef migrations script --project src/OrderDesk --idempotent --output db/schema.sql
 ```
 
-## Deploying to Azure (outline)
+## Udrulning til Azure (skitse)
 
-1. Create an App Service (Linux, .NET 10) and enable its **system-assigned managed identity**.
-2. Give that identity access to the database. Connected to the database as the Entra admin, run:
+1. Opret en App Service (Linux, .NET 10) og slå dens **system-assigned managed identity** til.
+2. Giv denne identitet adgang til databasen. Forbundet til databasen som Entra-administrator kører du:
 
    ```sql
    CREATE USER [your-app-service-name] FROM EXTERNAL PROVIDER;
@@ -156,18 +157,20 @@ dotnet ef migrations script --project src/OrderDesk --idempotent --output db/sch
    ALTER ROLE db_ddladmin  ADD MEMBER [your-app-service-name];   -- only because the demo migrates on startup
    ```
 
-3. Set the connection string `OrderDesk` in the App Service configuration and enable **WebSockets**
-   (Blazor Server uses them for the live connection).
+   (`db_ddladmin` er kun nødvendig, fordi demoen kører migrations ved opstart.)
 
-## Things worth knowing about Blazor Server
+3. Angiv connection string'en `OrderDesk` i App Service-konfigurationen, og slå **WebSockets** til
+   (Blazor Server bruger dem til den levende forbindelse).
 
-- **One live connection per browser tab.** UI state lives in server memory while the tab is open.
-  Fine for line-of-business apps with hundreds of users; for very large public sites you would
-  consider other render modes.
-- **Use `IDbContextFactory`, not a long-lived `DbContext`.** A user's session can last hours; each
-  operation in this demo creates a short-lived context. The two list pages keep one context per page
-  because QuickGrid queries it while you sort and page.
-- **Prerendering.** Pages are first rendered as static HTML (fast first paint, SEO), then become
-  interactive. That's why `OnInitializedAsync` can run twice – keep it free of side effects.
-- **Retry on transient faults.** `EnableRetryOnFailure()` in `Program.cs` handles the brief
-  connection drops that cloud databases occasionally have.
+## Godt at vide om Blazor Server
+
+- **Én levende forbindelse pr. browserfane.** UI-tilstanden ligger i serverens hukommelse, mens fanen
+  er åben. Det fungerer fint til forretningsapplikationer med hundredvis af brugere; til meget store
+  offentlige sites vil man overveje andre render modes.
+- **Brug `IDbContextFactory`, ikke en langtlevende `DbContext`.** En brugers session kan vare i timevis;
+  hver operation i denne demo opretter en kortlivet context. De to listesider beholder én context pr. side,
+  fordi QuickGrid forespørger på den, mens du sorterer og bladrer.
+- **Prerendering.** Siderne renderes først som statisk HTML (hurtig første visning, SEO) og bliver
+  derefter interaktive. Derfor kan `OnInitializedAsync` blive kørt to gange – lad den være fri for sideeffekter.
+- **Genforsøg ved forbigående fejl.** `EnableRetryOnFailure()` i `Program.cs` håndterer de korte
+  forbindelsesudfald, som clouddatabaser af og til har.
